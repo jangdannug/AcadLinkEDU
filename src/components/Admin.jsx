@@ -17,6 +17,7 @@ export default function Admin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState({});
 
   const fetchUsers = async () => {
   const data = await api.getUsers();
@@ -27,16 +28,19 @@ export default function Admin() {
   fetchUsers();
 }, []);
 
-  const handleVerify = async (userId) => {
+ const handleVerify = async (userId) => {
+  setLoadingUsers(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), verify: true } }));
+  try {
     const data = await api.verifyUser(userId);
     if (data) {
       setUsers(prev =>
-        prev.map(u =>
-          u.id === userId ? { ...u, isVerified: true } : u
-        )
+        prev.map(u => (u.id === userId ? { ...u, isVerified: true } : u))
       );
     }
-  };
+  } finally {
+    setLoadingUsers(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), verify: false } }));
+  }
+};
 
   const handleBatchVerify = async () => {
     const data = await api.batchVerifyUsers(selectedUsers);
@@ -52,28 +56,35 @@ export default function Admin() {
     }
   };
 
-  const handleDelete = async (userId) => {
-    if (!confirm('Are you sure you want to terminate this neural identity?')) return;
+const handleDelete = async (userId) => {
+  if (!confirm('Are you sure you want to terminate this neural identity?')) return;
 
+  setLoadingUsers(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), delete: true } }));
+  try {
     const data = await api.deleteUser(userId);
-
     if (data.success || data === undefined) {
       setUsers(prev => prev.filter(u => u.id !== userId));
       setSelectedUsers(prev => prev.filter(id => id !== userId));
     }
-  };
+  } finally {
+    setLoadingUsers(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), delete: false } }));
+  }
+};
 
-  const handleRevoke = async (userId) => {
+const handleRevoke = async (userId) => {
+  setLoadingUsers(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), revoke: true } }));
+  try {
     const data = await api.revokeUser(userId);
     if (data?.success || data === undefined) {
       setUsers(prev =>
-        prev.map(u =>
-          u.id === userId ? { ...u, isVerified: false } : u
-        )
+        prev.map(u => (u.id === userId ? { ...u, isVerified: false } : u))
       );
     }
     await fetchUsers();
-  };
+  } finally {
+    setLoadingUsers(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), revoke: false } }));
+  }
+};
 
   const toggleSelect = (userId) => {
     if (selectedUsers.includes(userId)) {
@@ -102,23 +113,29 @@ export default function Admin() {
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-[10px] uppercase tracking-[0.3em] text-neon-blue font-bold mb-2">Central Authority</h2>
-          <h1 className="text-3xl lg:text-4xl font-bold tracking-tighter">User Management</h1>
+          <h2 className="text-[10px] uppercase tracking-[0.3em] text-neon-blue font-bold mb-2">
+            Central Authority
+          </h2>
+          <h1 className="text-3xl lg:text-4xl font-bold tracking-tighter">
+            User Management
+          </h1>
         </div>
         <AnimatePresence>
           {selectedUsers.length > 0 && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               className="flex gap-4 w-full sm:w-auto"
             >
-              <button 
+              <button
                 onClick={handleBatchVerify}
                 className="cyber-button flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neon-blue/20"
               >
                 <UserCheck size={18} />
-                <span className="text-xs">VERIFY SELECTED ({selectedUsers.length})</span>
+                <span className="text-xs">
+                  VERIFY SELECTED ({selectedUsers.length})
+                </span>
               </button>
             </motion.div>
           )}
@@ -127,24 +144,27 @@ export default function Admin() {
 
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search neural identities..." 
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Search neural identities..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 lg:py-4 text-sm focus:outline-none focus:border-neon-blue transition-all"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
-          {['all', 'student', 'teacher', 'admin'].map((role) => (
+          {["all", "student", "teacher", "admin"].map((role) => (
             <button
               key={role}
               onClick={() => setRoleFilter(role)}
               className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border whitespace-nowrap ${
-                roleFilter === role 
-                  ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
-                  : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                roleFilter === role
+                  ? "bg-neon-blue/10 border-neon-blue text-neon-blue"
+                  : "bg-white/5 border-white/10 text-white/40 hover:text-white"
               }`}
             >
               {role}s
@@ -159,103 +179,137 @@ export default function Admin() {
             <thead>
               <tr className="border-b border-white/5 bg-white/[0.02]">
                 <th className="px-6 py-4 w-12">
-                  <button onClick={toggleSelectAll} className="text-white/20 hover:text-neon-blue transition-colors">
-                    {selectedUsers.length === filteredUsers.length && filteredUsers.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                  <button
+                    onClick={toggleSelectAll}
+                    className="text-white/20 hover:text-neon-blue transition-colors"
+                  >
+                    {selectedUsers.length === filteredUsers.length &&
+                    filteredUsers.length > 0 ? (
+                      <CheckSquare size={18} />
+                    ) : (
+                      <Square size={18} />
+                    )}
                   </button>
                 </th>
-                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold">Identity</th>
-                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold">Sector (Role)</th>
-                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold">Status</th>
-                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold text-right">Authorization</th>
+                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold">
+                  Identity
+                </th>
+                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold">
+                  Sector (Role)
+                </th>
+                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-[10px] uppercase tracking-widest text-white/40 font-bold text-right">
+                  Authorization
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-            {filteredUsers.map((user, i) => (
-              <motion.tr 
-                key={user.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.05 }}
-                className={`hover:bg-white/2 transition-colors group ${selectedUsers.includes(user.id) ? 'bg-neon-blue/5' : ''}`}
-              >
-                <td className="px-6 py-4">
-                  <button 
-                    onClick={() => toggleSelect(user.id)}
-                    className={`transition-colors ${selectedUsers.includes(user.id) ? 'text-neon-blue' : 'text-white/10 group-hover:text-white/30'}`}
-                  >
-                    {selectedUsers.includes(user.id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                  </button>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold border border-white/10">
-                      {user.name.charAt(0)}
+              {filteredUsers.map((user, i) => (
+                <motion.tr
+                  key={user.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.05 }}
+                  className={`hover:bg-white/2 transition-colors group ${selectedUsers.includes(user.id) ? "bg-neon-blue/5" : ""}`}
+                >
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => toggleSelect(user.id)}
+                      className={`transition-colors ${selectedUsers.includes(user.id) ? "text-neon-blue" : "text-white/10 group-hover:text-white/30"}`}
+                    >
+                      {selectedUsers.includes(user.id) ? (
+                        <CheckSquare size={18} />
+                      ) : (
+                        <Square size={18} />
+                      )}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold border border-white/10">
+                        {user.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">{user.name}</p>
+                        <p className="text-xs text-white/30">{user.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold">{user.name}</p>
-                      <p className="text-xs text-white/30">{user.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase ${
-                    user.role === 'admin' ? 'text-neon-purple border-neon-purple/20 bg-neon-purple/10' :
-                    user.role === 'teacher' ? 'text-neon-blue border-neon-blue/20 bg-neon-blue/10' :
-                    'text-white/40 border-white/10 bg-white/5'
-                  }`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  {user.isVerified ? (
-                    <div className="flex items-center gap-2 text-emerald-500 text-xs font-bold uppercase">
-                      <ShieldCheck size={14} />
-                      Verified
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-yellow-500 text-xs font-bold uppercase">
-                      <ShieldAlert size={14} />
-                      Pending
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-4">
-                    {!user.isVerified && (
-                      <button 
-                        onClick={() => handleVerify(user.id)}
-                        className="text-xs font-bold text-neon-blue hover:underline uppercase tracking-widest"
-                      >
-                        Authorize
-                      </button>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-1 rounded border uppercase ${
+                        user.role === "admin"
+                          ? "text-neon-purple border-neon-purple/20 bg-neon-purple/10"
+                          : user.role === "teacher"
+                            ? "text-neon-blue border-neon-blue/20 bg-neon-blue/10"
+                            : "text-white/40 border-white/10 bg-white/5"
+                      }`}
+                    >
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.isVerified ? (
+                      <div className="flex items-center gap-2 text-emerald-500 text-xs font-bold uppercase">
+                        <ShieldCheck size={14} />
+                        Verified
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-yellow-500 text-xs font-bold uppercase">
+                        <ShieldAlert size={14} />
+                        Pending
+                      </div>
                     )}
-                    {user.isVerified && user.role !== 'admin' && (
-                      <button 
-                        onClick={() => handleRevoke(user.id)}
-                        className="text-xs font-bold text-yellow-500 hover:underline uppercase tracking-widest"
-                      >
-                        Revoke
-                      </button>
-                    )}
-                    {user.role !== 'admin' && (
-                      <button 
-                        onClick={() => handleDelete(user.id)}
-                        className="text-xs font-bold text-red-400/50 hover:text-red-400 hover:underline uppercase tracking-widest"
-                      >
-                        Terminate
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
-        {filteredUsers.length === 0 && (
-          <div className="p-12 text-center text-white/20 italic">
-            No matching neural identities found in the database.
-          </div>
-        )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-4">
+                      {!user.isVerified && (
+                        <button
+                          onClick={() => handleVerify(user.id)}
+                          disabled={loadingUsers[user.id]?.verify}
+                          className={`text-xs font-bold text-neon-blue hover:underline uppercase tracking-widest ${loadingUsers[user.id]?.verify ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {loadingUsers[user.id]?.verify
+                            ? "Authorizing..."
+                            : "Authorize"}
+                        </button>
+                      )}
+
+                      {user.isVerified && user.role !== "admin" && (
+                        <button
+                          onClick={() => handleRevoke(user.id)}
+                          disabled={loadingUsers[user.id]?.revoke}
+                          className={`text-xs font-bold text-yellow-500 hover:underline uppercase tracking-widest ${loadingUsers[user.id]?.revoke ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {loadingUsers[user.id]?.revoke
+                            ? "Revoking..."
+                            : "Revoke"}
+                        </button>
+                      )}
+                      {user.role !== "admin" && (
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          disabled={loadingUsers[user.id]?.delete}
+                          className={`text-xs font-bold text-red-400/50 hover:text-red-400 hover:underline uppercase tracking-widest ${loadingUsers[user.id]?.delete ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {loadingUsers[user.id]?.delete
+                            ? "Terminating..."
+                            : "Terminate"}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredUsers.length === 0 && (
+            <div className="p-12 text-center text-white/20 italic">
+              No matching neural identities found in the database.
+            </div>
+          )}
         </div>
       </div>
     </div>
