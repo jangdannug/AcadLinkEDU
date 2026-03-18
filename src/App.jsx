@@ -8,6 +8,7 @@ import Tasks from './components/Tasks.jsx';
 import Admin from './components/Admin.jsx';
 import ClassDetail from './components/ClassDetail.jsx';
 import Notifications from './components/Notifications.jsx';
+import FuturisticSnackbar from './components/FuturisticSnackbar.jsx';
 
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
@@ -28,6 +29,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <FuturisticSnackbar />
       <Routes>
         <Route 
           path="/login" 

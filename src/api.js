@@ -1,3 +1,6 @@
+import axios from 'axios';
+
+const API_BASE = 'https://localhost:7209';
 
 // Mock Database State with LocalStorage Persistence
 const getInitialData = (key, defaultValue) => {
@@ -8,13 +11,7 @@ const getInitialData = (key, defaultValue) => {
 const saveData = (key, data) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
-
-let users = getInitialData('mock_users', [
-  { id: "1", email: "admin@acadlink.edu", name: "System Admin", role: "admin", isVerified: true },
-  { id: "2", email: "teacher@acadlink.edu", name: "Prof. Xavier", role: "teacher", isVerified: true },
-  { id: "3", email: "student@acadlink.edu", name: "John Doe", role: "student", isVerified: true },
-  { id: "4", email: "new_teacher@acadlink.edu", name: "Dr. Strange", role: "teacher", isVerified: true },
-]);
+let users = getInitialData('mock_users', []);
 
 let classes = getInitialData('mock_classes', [
   { id: "c1", name: "Advanced Robotics", description: "Building the future with AI and hardware.", teacherId: "2", inviteCode: "ROBO2026" },
@@ -58,11 +55,22 @@ const delay = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms));
 export const api = {
   // Auth
   login: async (email) => {
-    await delay();
-    const user = users.find(u => u.email === email);
-    if (user) return { user };
-    throw new Error("Identity email not found in neural database.");
-  },
+    try {
+        const res = await axios.post(`${API_BASE}/api/Users/login`, { email });
+        return { user: res.data };
+    } catch (err) {
+        // Grab the message property and also show snackbar notification
+        const message = err.response?.data?.message || "Login failed";
+        try {
+          // dynamically import store to avoid circular imports at module load
+          const { useUIStore } = await import('./store.js');
+          useUIStore.getState().showNotification(message, 'error', 8000);
+        } catch (e) {
+          console.log('[api.login] failed to show snackbar', e && e.toString());
+        }
+        return { error: message };
+    }
+},
   
   register: async (data) => {
     await delay();
@@ -77,14 +85,55 @@ export const api = {
   // Users
   getUsers: async () => {
     await delay();
-    return users;
+    const url = `${API_BASE}/api/Users`;
+    console.log('[api.getUsers] calling:', url);
+    try {
+      const res = await axios.get(url);
+      console.log('[api.getUsers] response status:', res.status, 'data:', res.data);
+      // Expecting the API to return an array of users
+      if (Array.isArray(res.data)) {
+        // update local cache for other mock operations
+        users = res.data;
+        saveData('mock_users', users);
+        return users;
+      }
+      // If API returns a wrapper object, try to find users inside
+      if (res.data && Array.isArray(res.data.users)) {
+        users = res.data.users;
+        saveData('mock_users', users);
+        return users;
+      }
+
+      console.log('[api.getUsers] unexpected response shape, falling back to cached users');
+      // fallback to local mock users
+      return users;
+    } catch (err) {
+      console.log('[api.getUsers] failed to fetch users from API, falling back to mock data', url, err && err.toString());
+      return users;
+    }
   },
   
-  verifyUser: async (userId) => {
-    await delay();
-    users = users.map(u => u.id === userId ? { ...u, isVerified: true } : u);
-    saveData('mock_users', users);
-    return users.find(u => u.id === userId);
+ verifyUser: async (userId) => {
+    try {
+      const res = await axios.put(`${API_BASE}/api/Users/${userId}/verify`);
+      // The backend returns a DTO with Id, Email, Name, Role, IsVerified
+      return res.data;
+    } catch (err) {
+      // Grab the backend error message if available
+      const message = err.response?.data?.message || err.response?.data || "Verification failed";
+      return { error: message };
+    }
+  },
+   revokeUser: async (userId) => {
+    try {
+      const res = await axios.put(`${API_BASE}/api/Users/${userId}/revoke`);
+      // The backend returns a DTO with Id, Email, Name, Role, IsVerified
+      return res.data;
+    } catch (err) {
+      // Grab the backend error message if available
+      const message = err.response?.data?.message || err.response?.data || "Revoke failed";
+      return { error: message };
+    }
   },
   
   batchVerifyUsers: async (userIds) => {
@@ -94,12 +143,16 @@ export const api = {
     return { success: true };
   },
   
-  deleteUser: async (userId) => {
-    await delay();
-    users = users.filter(u => u.id !== userId);
-    saveData('mock_users', users);
-    return { success: true };
-  },
+deleteUser: async (userId) => {
+  try {
+    await axios.delete(`${API_BASE}/api/Users/${userId}`);
+
+    return { success: true }; // manually return success
+  } catch (err) {
+    const message = err.response?.data?.message || "Delete failed";
+    return { error: message };
+  }
+},
 
   // Classes
   getClasses: async (studentId) => {

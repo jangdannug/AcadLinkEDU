@@ -10,42 +10,69 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../api.js';
 
+
+
 export default function Admin() {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUsers, setSelectedUsers] = useState([]);
 
+  const fetchUsers = async () => {
+  const data = await api.getUsers();
+  setUsers(data);
+};
+
   useEffect(() => {
-    api.getUsers().then(data => setUsers(data));
-  }, []);
+  fetchUsers();
+}, []);
 
   const handleVerify = async (userId) => {
     const data = await api.verifyUser(userId);
     if (data) {
-      setUsers(users.map(u => u.id === userId ? { ...u, isVerified: true } : u));
+      setUsers(prev =>
+        prev.map(u =>
+          u.id === userId ? { ...u, isVerified: true } : u
+        )
+      );
     }
   };
 
   const handleBatchVerify = async () => {
     const data = await api.batchVerifyUsers(selectedUsers);
     if (data.success) {
-      setUsers(users.map(u => selectedUsers.includes(u.id) ? { ...u, isVerified: true } : u));
+      setUsers(prev =>
+        prev.map(u =>
+          selectedUsers.includes(u.id)
+            ? { ...u, isVerified: true }
+            : u
+        )
+      );
       setSelectedUsers([]);
     }
   };
 
   const handleDelete = async (userId) => {
     if (!confirm('Are you sure you want to terminate this neural identity?')) return;
+
     const data = await api.deleteUser(userId);
-    if (data.success) {
-      setUsers(users.filter(u => u.id !== userId));
-      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+
+    if (data.success || data === undefined) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setSelectedUsers(prev => prev.filter(id => id !== userId));
     }
   };
 
   const handleRevoke = async (userId) => {
-    setUsers(users.map(u => u.id === userId ? { ...u, isVerified: false } : u));
+    const data = await api.revokeUser(userId);
+    if (data?.success || data === undefined) {
+      setUsers(prev =>
+        prev.map(u =>
+          u.id === userId ? { ...u, isVerified: false } : u
+        )
+      );
+    }
+    await fetchUsers();
   };
 
   const toggleSelect = (userId) => {

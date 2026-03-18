@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore } from '../store.js';
+import { useAuthStore, useUIStore } from '../store.js';
 import { LogIn, Shield, Cpu, Loader2 } from 'lucide-react';
 import { api } from '../api.js';
 
@@ -12,6 +12,7 @@ export default function Login() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const setUser = useAuthStore((state) => state.setUser);
+  const showNotification = useUIStore((s) => s.showNotification);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -25,22 +26,26 @@ export default function Login() {
 
     try {
       let data;
+      console.log('[Login] initiating auth, isRegistering:', isRegistering, 'email:', email, 'name:', name, 'role:', role);
       if (isRegistering) {
+        console.log('[Login] calling api.register');
         data = await api.register({ email, name, role });
       } else {
+        console.log('[Login] calling api.login');
         data = await api.login(email);
+        console.log('[Login] api.login returned:', data);
       }
       
       if (data.user) {
         setUser(data.user);
       } else {
-        alert(data.error || 'Access Denied: Neural signature mismatch.');
+        showNotification(data.error || 'Access Denied: Neural signature mismatch.', 'error', 6000);
         setIsAuthenticating(false);
         setLoadingProgress(0);
       }
     } catch (err) {
-      console.error(err);
-      alert(err.message || 'Access Denied: Neural signature mismatch.');
+      console.error('[Login] auth error', err);
+      showNotification(err?.message || 'Access Denied: Neural signature mismatch.', 'error', 6000);
       setIsAuthenticating(false);
       setLoadingProgress(0);
     }
