@@ -26,14 +26,10 @@ export default function Login() {
 
     try {
       let data;
-      console.log('[Login] initiating auth, isRegistering:', isRegistering, 'email:', email, 'name:', name, 'role:', role);
       if (isRegistering) {
-        console.log('[Login] calling api.register');
         data = await api.register({ email, name, role });
       } else {
-        console.log('[Login] calling api.login');
         data = await api.login(email);
-        console.log('[Login] api.login returned:', data);
       }
       
       if (data.user) {

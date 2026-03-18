@@ -89,10 +89,8 @@ export const api = {
   getUsers: async () => {
     await delay();
     const url = `${API_BASE}/api/Users`;
-    console.log('[api.getUsers] calling:', url);
     try {
       const res = await axios.get(url);
-      console.log('[api.getUsers] response status:', res.status, 'data:', res.data);
       // Expecting the API to return an array of users
       if (Array.isArray(res.data)) {
         // update local cache for other mock operations
@@ -107,7 +105,6 @@ export const api = {
         return users;
       }
 
-      console.log('[api.getUsers] unexpected response shape, falling back to cached users');
       // fallback to local mock users
       return users;
     } catch (err) {
@@ -156,6 +153,39 @@ deleteUser: async (userId) => {
     return { error: message };
   }
 },
+
+// Notifications
+  getNotifications: async (userId) => {
+    try {
+      const response = await axios.get(
+        `${API_BASE}/api/Notifications/${userId}`,
+      );
+      if (response.data) {
+        return response.data;
+      } else {
+        console.error("Failed to fetch notifications", response.data);
+        return [];
+      }
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Failed to fetch notifications";
+      return { error: message };
+    }
+  },
+  
+  toggleNotificationRead: async (id, isRead) => {
+    await delay();
+    notifications = notifications.map(n => n.id === id ? { ...n, isRead } : n);
+    saveData('mock_notifications', notifications);
+    return { success: true };
+  },
+  
+  deleteNotification: async (id) => {
+    await delay();
+    notifications = notifications.filter(n => n.id !== id);
+    saveData('mock_notifications', notifications);
+    return { success: true };
+  },
 
   // Classes
   getClasses: async (studentId) => {
@@ -322,23 +352,5 @@ deleteUser: async (userId) => {
     return newSubmission;
   },
 
-  // Notifications
-  getNotifications: async (userId) => {
-    await delay();
-    return notifications.filter(n => n.userId === userId);
-  },
   
-  toggleNotificationRead: async (id, isRead) => {
-    await delay();
-    notifications = notifications.map(n => n.id === id ? { ...n, isRead } : n);
-    saveData('mock_notifications', notifications);
-    return { success: true };
-  },
-  
-  deleteNotification: async (id) => {
-    await delay();
-    notifications = notifications.filter(n => n.id !== id);
-    saveData('mock_notifications', notifications);
-    return { success: true };
-  }
 };
