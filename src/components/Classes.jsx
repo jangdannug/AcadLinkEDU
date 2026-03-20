@@ -18,64 +18,114 @@ export default function Classes() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
+  const [users, setUsers] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [newClassName, setNewClassName] = useState('');
-
   const [searchQuery, setSearchQuery] = useState('');
+  const [newClassDescription, setNewClassDescription] = useState('New academic frontier.');
 
   useEffect(() => {
-    const fetchClasses = async () => {
-      const allClasses = await api.getClasses(user?.role === 'student' ? user.id : null);
+    const fetchData = async () => {
+      try {
+        const allClasses = await api.getClasses(user?.role === 'student' ? user.id : null);
+        const allUsers = await api.getUsers();
+        // Map teacherId → teacherName
+        const classesWithTeachers = allClasses.map(c => {
+          const teacher = allUsers.find(u => u.id === c.teacherId && u.role === 'teacher');
+          return {
+            ...c,
+            teacherName: teacher ? teacher.name : "Unknown Authority",
+            teacherEmail: teacher ? teacher.email : null
+          };
+        });
 
-      let finalClasses = allClasses;
-      if (user?.role === 'teacher') {
-        finalClasses = allClasses.filter(c => c.teacherId === user.id);
+        // If current user is a teacher, show only their classes
+        const finalClasses = user?.role === 'teacher'
+          ? classesWithTeachers.filter(c => c.teacherId === user.id)
+          : classesWithTeachers;
+
+        setClasses(finalClasses);
+        setUsers(allUsers);
+      } catch (err) {
+        console.error('Failed to fetch classes or users:', err);
       }
-
-      setClasses(finalClasses);
     };
-    fetchClasses();
+
+    fetchData();
   }, [user]);
 
+  // Filter classes by search query
   const filteredClasses = classes.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.description.toLowerCase().includes(searchQuery.toLowerCase())
+    c.name?.toLowerCase().includes(searchQuery?.toLowerCase()) ||
+    (c.description?.toLowerCase().includes(searchQuery?.toLowerCase()))
   );
 
+  // Group classes by teacher
   const groupedClasses = filteredClasses.reduce((acc, cls) => {
-    const teacher = cls.teacherName || "Unknown Authority";
+    const teacher = cls.teacherName;
     if (!acc[teacher]) acc[teacher] = [];
     acc[teacher].push(cls);
     return acc;
   }, {});
 
+  // Join class
   const handleJoin = async () => {
     if (!user?.isVerified) return;
     try {
       await api.joinClass(user.id, inviteCode);
       alert('Neural link established with class.');
       setShowJoinModal(false);
-      window.location.reload();
+      // Refresh classes
+      const refreshedClasses = await api.getClasses(user.id);
+      setClasses(refreshedClasses);
     } catch (err) {
       alert(err.message || 'Invalid access code.');
     }
   };
 
-  const handleCreate = async () => {
-    if (!user?.isVerified) return;
-    const data = await api.createClass({ 
+  // Create class
+ const handleCreate = async () => {
+  if (!user?.isVerified) return;
+  try {
+    await api.createClass({ 
       name: newClassName, 
       teacherId: user.id, 
-      description: 'New academic frontier.' 
+      description: newClassDescription,
     });
-    setClasses([...classes, data]);
+
+    // Close modal & reset inputs
     setShowCreateModal(false);
-  };
+    setNewClassName('');
+    setNewClassDescription('New academic frontier.');
+
+    // Fetch latest classes from backend
+    const refreshedClasses = await api.getClasses(user?.role === 'student' ? user.id : null);
+    const classesWithTeachers = refreshedClasses.map(c => {
+      const teacher = users.find(u => u.id === c.teacherId && u.role === 'teacher');
+      return {
+        ...c,
+        teacherName: teacher ? teacher.name : "Unknown Authority",
+        teacherEmail: teacher ? teacher.email : null
+      };
+    });
+
+    const finalClasses = user?.role === 'teacher'
+      ? classesWithTeachers.filter(c => c.teacherId === user.id)
+      : classesWithTeachers;
+
+    setClasses(finalClasses);
+
+  } catch (err) {
+    console.error('Failed to create class:', err);
+    alert('Failed to create class.');
+  }
+};
 
   return (
     <div className="space-y-8">
+      {/* Header */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-[10px] uppercase tracking-[0.3em] text-neon-blue font-bold mb-2">Academic Matrix</h2>
@@ -105,6 +155,7 @@ export default function Classes() {
         </div>
       </header>
 
+      {/* Verification notice */}
       {!user?.isVerified && user?.role !== 'admin' && (
         <div className="glass-panel p-4 lg:p-6 border-yellow-500/30 bg-yellow-500/5 flex items-center gap-4">
           <Lock className="text-yellow-500 flex-shrink-0" size={24} />
@@ -115,6 +166,7 @@ export default function Classes() {
         </div>
       )}
 
+      {/* Search */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={20} />
         <input 
@@ -126,6 +178,7 @@ export default function Classes() {
         />
       </div>
 
+      {/* Classes Grid */}
       <div className="space-y-12">
         {Object.entries(groupedClasses).map(([teacher, teacherClasses]) => (
           <div key={teacher} className="space-y-6">
@@ -159,7 +212,7 @@ export default function Classes() {
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="text-xl font-bold tracking-tight group-hover:text-neon-blue transition-colors">{cls.name}</h3>
-                        <p className="text-[10px] font-mono text-neon-blue/60 mt-1">CODE: {cls.inviteCode}</p>
+                        <p className="text-[10px] font-mono text-neon-blue/60 mt-1">CODE: {cls.inviteCode || 'N/A'}</p>
                       </div>
                       <div className="p-2 bg-neon-blue/10 rounded-lg border border-neon-blue/20">
                         <BookOpen size={16} className="text-neon-blue" />
@@ -216,61 +269,81 @@ export default function Classes() {
         ))}
       </div>
 
-      {/* Modals */}
-      {(showCreateModal || showJoinModal) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-panel p-8 w-full max-w-md neon-border"
-          >
-            <h2 className="text-2xl font-bold mb-6 neon-text">
-              {showCreateModal ? 'Initialize New Class' : 'Enter Access Code'}
-            </h2>
-            
-            <div className="space-y-4">
-              {showCreateModal ? (
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-white/40 mb-2">Class Designation</label>
-                  <input 
-                    type="text" 
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue"
-                    placeholder="e.g. Quantum Mechanics"
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-white/40 mb-2">Invite Code</label>
-                  <input 
-                    type="text" 
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue font-mono uppercase"
-                    placeholder="XXXXXX"
-                  />
-                </div>
-              )}
-              
-              <div className="flex gap-4 pt-4">
-                <button 
-                  onClick={() => { setShowCreateModal(false); setShowJoinModal(false); }}
-                  className="flex-1 px-6 py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
-                >
-                  CANCEL
-                </button>
-                <button 
-                  onClick={showCreateModal ? handleCreate : handleJoin}
-                  className="flex-1 cyber-button"
-                >
-                  CONFIRM
-                </button>
-              </div>
+     {/* Modals */}
+{(showCreateModal || showJoinModal) && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="glass-panel p-8 w-full max-w-md neon-border"
+    >
+      <h2 className="text-2xl font-bold mb-6 neon-text">
+        {showCreateModal ? 'Initialize New Class' : 'Enter Access Code'}
+      </h2>
+      
+      <div className="space-y-4">
+        {showCreateModal ? (
+          <div className="space-y-4">
+            {/* Class Name */}
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-white/40 mb-2">
+                Class Designation
+              </label>
+              <input 
+                type="text" 
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue"
+                placeholder="e.g. Quantum Mechanics"
+              />
             </div>
-          </motion.div>
+
+            {/* Class Description */}
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-white/40 mb-2">
+                Class Description
+              </label>
+              <textarea
+                value={newClassDescription}
+                onChange={(e) => setNewClassDescription(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue"
+                placeholder="Enter a brief description"
+                rows={3}
+              />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-white/40 mb-2">Invite Code</label>
+            <input 
+              type="text" 
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue font-mono uppercase"
+              placeholder="XXXXXX"
+            />
+          </div>
+        )}
+        
+        {/* Modal Actions */}
+        <div className="flex gap-4 pt-4">
+          <button 
+            onClick={() => { setShowCreateModal(false); setShowJoinModal(false); }}
+            className="flex-1 px-6 py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+          >
+            CANCEL
+          </button>
+          <button 
+            onClick={showCreateModal ? handleCreate : handleJoin}
+            className="flex-1 cyber-button"
+          >
+            CONFIRM
+          </button>
         </div>
-      )}
+      </div>
+    </motion.div>
+  </div>
+)}
     </div>
   );
 }

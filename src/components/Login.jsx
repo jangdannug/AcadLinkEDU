@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore, useUIStore } from '../store.js';
-import { LogIn, Shield, Cpu, Loader2 } from 'lucide-react';
-import { api } from '../api.js';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore, useUIStore } from "../store.js";
+import { LogIn, Shield, Cpu, Loader2 } from "lucide-react";
+import { api } from "../api.js";
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('student');
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("student");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const setUser = useAuthStore((state) => state.setUser);
@@ -17,11 +17,11 @@ export default function Login() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setIsAuthenticating(true);
-    
+
     // Futuristic loading simulation
     for (let i = 0; i <= 100; i += 2) {
       setLoadingProgress(i);
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 20));
     }
 
     try {
@@ -31,17 +31,25 @@ export default function Login() {
       } else {
         data = await api.login(email);
       }
-      
-      if (data.user) {
+
+      if (data?.user) {
         setUser(data.user);
       } else {
-        showNotification(data.error || 'Access Denied: Neural signature mismatch.', 'error', 6000);
+        showNotification(
+          data?.error || "Access Denied: Neural signature mismatch.",
+          "error",
+          6000,
+        );
         setIsAuthenticating(false);
         setLoadingProgress(0);
       }
     } catch (err) {
-      console.error('[Login] auth error', err);
-      showNotification(err?.message || 'Access Denied: Neural signature mismatch.', 'error', 6000);
+      console.error("[Login] auth error", err);
+      showNotification(
+        err?.message || "Access Denied: Neural signature mismatch.",
+        "error",
+        6000,
+      );
       setIsAuthenticating(false);
       setLoadingProgress(0);
     }
@@ -68,9 +76,13 @@ export default function Login() {
               <div className="w-16 h-16 bg-neon-blue/10 rounded-2xl flex items-center justify-center mb-4 border border-neon-blue/30">
                 <Cpu className="text-neon-blue w-8 h-8" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tighter neon-text">AcadLinkEdu</h1>
+              <h1 className="text-3xl font-bold tracking-tighter neon-text">
+                AcadLinkEdu
+              </h1>
               <p className="text-white/50 text-sm mt-2">
-                {isRegistering ? 'Create new neural identity' : 'Initialize neural connection'}
+                {isRegistering
+                  ? "Create new neural identity"
+                  : "Initialize neural connection"}
               </p>
             </div>
 
@@ -78,7 +90,9 @@ export default function Login() {
               {isRegistering && (
                 <>
                   <div>
-                    <label className="block text-xs uppercase tracking-widest text-white/40 mb-2 ml-1">Full Name</label>
+                    <label className="block text-xs uppercase tracking-widest text-white/40 mb-2 ml-1">
+                      Full Name
+                    </label>
                     <input
                       type="text"
                       value={name}
@@ -89,22 +103,28 @@ export default function Login() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs uppercase tracking-widest text-white/40 mb-2 ml-1">Sector Role</label>
+                    <label className="block text-xs uppercase tracking-widest text-white/40 mb-2 ml-1">
+                      Sector Role
+                    </label>
                     <div className="grid grid-cols-2 gap-4">
                       <button
                         type="button"
-                        onClick={() => setRole('student')}
+                        onClick={() => setRole("student")}
                         className={`py-2 rounded-lg border text-xs font-bold transition-all ${
-                          role === 'student' ? 'border-neon-blue text-neon-blue bg-neon-blue/10' : 'border-white/10 text-white/40'
+                          role === "student"
+                            ? "border-neon-blue text-neon-blue bg-neon-blue/10"
+                            : "border-white/10 text-white/40"
                         }`}
                       >
                         STUDENT
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRole('teacher')}
+                        onClick={() => setRole("teacher")}
                         className={`py-2 rounded-lg border text-xs font-bold transition-all ${
-                          role === 'teacher' ? 'border-neon-purple text-neon-purple bg-neon-purple/10' : 'border-white/10 text-white/40'
+                          role === "teacher"
+                            ? "border-neon-purple text-neon-purple bg-neon-purple/10"
+                            : "border-white/10 text-white/40"
                         }`}
                       >
                         TEACHER
@@ -115,7 +135,9 @@ export default function Login() {
               )}
 
               <div>
-                <label className="block text-xs uppercase tracking-widest text-white/40 mb-2 ml-1">Identity Email</label>
+                <label className="block text-xs uppercase tracking-widest text-white/40 mb-2 ml-1">
+                  Identity Email
+                </label>
                 <input
                   type="email"
                   value={email}
@@ -126,18 +148,23 @@ export default function Login() {
                 />
               </div>
 
-              <button type="submit" className="w-full cyber-button flex items-center justify-center gap-2">
+              <button
+                type="submit"
+                className="w-full cyber-button flex items-center justify-center gap-2"
+              >
                 <LogIn size={18} />
-                {isRegistering ? 'REGISTER IDENTITY' : 'AUTHORIZE ACCESS'}
+                {isRegistering ? "REGISTER IDENTITY" : "AUTHORIZE ACCESS"}
               </button>
             </form>
 
             <div className="mt-6 text-center">
-              <button 
+              <button
                 onClick={() => setIsRegistering(!isRegistering)}
                 className="text-xs text-white/40 hover:text-neon-blue transition-colors uppercase tracking-widest"
               >
-                {isRegistering ? 'Already have an identity? Login' : 'New sector member? Register'}
+                {isRegistering
+                  ? "Already have an identity? Login"
+                  : "New sector member? Register"}
               </button>
             </div>
 
@@ -180,16 +207,24 @@ export default function Login() {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-mono font-bold neon-text">{loadingProgress}%</span>
-                <span className="text-[10px] text-white/40 uppercase tracking-widest mt-2">Syncing...</span>
+                <span className="text-4xl font-mono font-bold neon-text">
+                  {loadingProgress}%
+                </span>
+                <span className="text-[10px] text-white/40 uppercase tracking-widest mt-2">
+                  Syncing...
+                </span>
               </div>
             </div>
-            
+
             <div className="space-y-2 text-center">
               <p className="text-neon-blue font-mono text-sm animate-pulse">
                 {loadingProgress < 30 && "Decrypting neural patterns..."}
-                {loadingProgress >= 30 && loadingProgress < 60 && "Establishing secure tunnel..."}
-                {loadingProgress >= 60 && loadingProgress < 90 && "Verifying academic credentials..."}
+                {loadingProgress >= 30 &&
+                  loadingProgress < 60 &&
+                  "Establishing secure tunnel..."}
+                {loadingProgress >= 60 &&
+                  loadingProgress < 90 &&
+                  "Verifying academic credentials..."}
                 {loadingProgress >= 90 && "Finalizing interface..."}
               </p>
               <div className="flex gap-1 justify-center">
@@ -197,7 +232,11 @@ export default function Login() {
                   <motion.div
                     key={i}
                     animate={{ opacity: [0, 1, 0] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      delay: i * 0.2,
+                    }}
                     className="w-1 h-1 bg-neon-blue rounded-full"
                   />
                 ))}
