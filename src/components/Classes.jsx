@@ -71,19 +71,34 @@ export default function Classes() {
   }, {});
 
   // Join class
-  const handleJoin = async () => {
-    if (!user?.isVerified) return;
-    try {
-      await api.joinClass(user.id, inviteCode);
-      alert('Neural link established with class.');
-      setShowJoinModal(false);
-      // Refresh classes
-      const refreshedClasses = await api.getClasses(user.id);
-      setClasses(refreshedClasses);
-    } catch (err) {
-      alert(err.message || 'Invalid access code.');
-    }
-  };
+const handleJoin = async () => {
+  if (!user?.isVerified) return;
+
+  const { useUIStore } = await import("../store.js");
+
+  try {
+    await api.joinClass(user.id, inviteCode);
+
+    useUIStore.getState().showNotification(
+      "Neural link established with class.",
+      "success",
+      4000
+    );
+
+    setShowJoinModal(false);
+
+    // Refresh classes
+    const refreshedClasses = await api.getClasses(user.id);
+    setClasses(refreshedClasses);
+
+  } catch (err) {
+    useUIStore.getState().showNotification(
+      err.message || "Invalid access code.",
+      "error",
+      8000
+    );
+  }
+};
 
   // Create class
  const handleCreate = async () => {

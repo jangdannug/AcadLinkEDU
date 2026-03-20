@@ -22,10 +22,7 @@ export default function Notifications() {
   useEffect(() => {
     const fetchNotifications = async () => {
       if (!user) return;
-            console.log('User:', user);
-
       const data = await api.getNotifications(user.id);
-      console.log('Fetched notifications:', data);
       setNotifications(data);
     };
     fetchNotifications();

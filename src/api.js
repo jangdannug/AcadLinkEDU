@@ -1,6 +1,6 @@
 import axios from "axios";
 
-//const API_BASE = "https://localhost:7209";
+// const API_BASE = "https://localhost:7209";
  const API_BASE = 'https://acadlinkedubackend.onrender.com';
 
 // Mock Database State with LocalStorage Persistence
@@ -125,8 +125,6 @@ export const api = {
     try {
       const response = await axios.post(`${API_BASE}/api/Users/register`, data);
 
-      console.log("[api.register] response:", response.data);
-
       if (response.data?.success) {
         return {
           user: response.data.data,
@@ -145,9 +143,6 @@ export const api = {
       };
     } catch (err) {
       const message = err.response?.data?.message || "Registration failed";
-
-      console.log("[api.register] error:", message);
-
       const { useUIStore } = await import("./store.js");
       useUIStore.getState().showNotification(message, "error", 8000);
 
@@ -302,7 +297,6 @@ batchVerifyUsers: async (userIds) => {
 createClass: async (data) => {
     try {
       const response = await axios.post(`${API_BASE}/api/Classes/Create`, data);
-      console.log("[api.createClass] response:", response.data);
       return response.data;
     } catch (err) {
       console.error("Failed to create class:", err);
@@ -311,10 +305,18 @@ createClass: async (data) => {
   },
 
   // Activities
-  getActivities: async (classId) => {
-    await delay();
-    if (classId) return activities.filter((a) => a.classId === classId);
-    return activities;
+ getActivities: async (classId) => {
+    try {
+      const url = classId 
+        ? `${API_BASE}/api/Activities?classId=${classId}` 
+        : `${API_BASE}/api/Activities`;
+
+      const response = await axios.get(url);
+      return response.data;
+    } catch (err) {
+      console.error("Failed to fetch activities:", err);
+      return [];
+    }
   },
 
   createActivity: async (data) => {
@@ -356,25 +358,22 @@ createClass: async (data) => {
 
   // Enrollments
   joinClass: async (studentId, inviteCode) => {
-    await delay();
-    const targetClass = classes.find((c) => c.inviteCode === inviteCode);
-    if (targetClass) {
-      const existing = enrollments.find(
-        (e) => e.studentId === studentId && e.classId === targetClass.id,
-      );
-      if (existing) throw new Error("Already joined");
-
-      const newEnrollment = {
-        id: `e${enrollments.length + 1}`,
+  try {
+    const response = await axios.post(
+      `${API_BASE}/api/Classes/JoinClass`,
+      {
         studentId,
-        classId: targetClass.id,
-      };
-      enrollments.push(newEnrollment);
-      saveData("mock_enrollments", enrollments);
-      return newEnrollment;
-    }
-    throw new Error("Invalid invite code");
-  },
+        inviteCode,
+      }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Failed to join class:", err);
+    throw new Error(
+      err.response?.data?.message || "Failed to join class"
+    );
+  }
+},
 
   // Analytics
   getAnalytics: async (teacherId) => {

@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store.js';
 import { 
   Users, 
-  BookOpen, 
   CheckCircle2, 
   Clock, 
   Plus, 
@@ -52,17 +51,11 @@ export default function ClassDetail() {
         user?.role === 'teacher' ? api.getAnalytics(user.id) : Promise.resolve(null)
       ]);
 
-      const currentClass = classes.find(c => c.id === classId);
+      const currentClass = classes.find(c => c.id === Number(classId));
       setClassData(currentClass);
 
       const classActivities = allActivities.filter(a => a.classId === classId);
       setActivities(classActivities);
-
-      // In mock mode, we can get enrollments directly if we want, but let's assume we need to filter users
-      // Actually api.getClasses(studentId) handles enrollment check for student.
-      // For teacher to see students, we might need a getEnrollments but let's just use the classes data if it had it.
-      // The server.js had an enrollments endpoint. Let's add it to api.js if needed.
-      // Wait, I didn't add getEnrollments to api.js. Let me add it.
       
       // For now, let's just mock the student list for the class
       const classStudents = allUsers.filter(u => u.role === 'student'); // Simplified for mock
@@ -146,7 +139,6 @@ export default function ClassDetail() {
   };
 
   if (!classData) return <div className="flex items-center justify-center h-full text-neon-blue animate-pulse">SYNCING SECTOR DATA...</div>;
-
   if (!user?.isVerified && user?.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
