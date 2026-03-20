@@ -167,7 +167,7 @@ const handleRevoke = async (userId) => {
                   : "bg-white/5 border-white/10 text-white/40 hover:text-white"
               }`}
             >
-              {role}s
+    {role === "all" ? "All" : `${role}s`}
             </button>
           ))}
         </div>
