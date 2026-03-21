@@ -44,7 +44,6 @@ export default function Login() {
         setLoadingProgress(0);
       }
     } catch (err) {
-      console.error("[Login] auth error", err);
       showNotification(
         err?.message || "Access Denied: Neural signature mismatch.",
         "error",

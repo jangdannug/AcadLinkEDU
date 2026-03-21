@@ -115,7 +115,9 @@ export const api = {
         const { useUIStore } = await import("./store.js");
         useUIStore.getState().showNotification(message, "error", 8000);
       } catch (e) {
-        console.log("[api.login] failed to show snackbar", e && e.toString());
+        const fallbackMessage = "Login failed and notification could not be shown";
+        alert(fallbackMessage);
+        console.error("[api.login] " + fallbackMessage + ": " + message);
       }
       return { error: message };
     }
@@ -171,11 +173,10 @@ export const api = {
 
       return users;
     } catch (err) {
-      console.log(
-        "[api.getUsers] failed to fetch users from API, falling back to mock data",
-        url,
-        err && err.toString(),
-      );
+        const message = err.response?.data?.message || "Failed to fetch users";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
+
       return users;
     }
   },
@@ -220,7 +221,8 @@ batchVerifyUsers: async (userIds) => {
 
   } catch (err) {
     const message = err.response?.data?.message || "Batch verify failed";
-    console.error("[api.batchVerifyUsers] error:", message);
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
     return { success: false, error: message };
   }
 },
@@ -245,19 +247,23 @@ batchVerifyUsers: async (userIds) => {
       if (response.data) {
         return response.data;
       } else {
-        console.error("Failed to fetch notifications", response.data);
+         const message = response?.data?.message || "Batch verify failed";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
         return [];
       }
     } catch (err) {
       const message =
         err.response?.data?.message || "Failed to fetch notifications";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
       return { error: message };
     }
   },
 
    toggleNotificationRead: async (id, isRead) => {
     try {
-    axios.patch(`${API_BASE}/api/Notifications/${id}/Read`, null, { params: { isRead: isRead } });
+   var response = axios.patch(`${API_BASE}/api/Notifications/${id}/Read`, null, { params: { isRead: isRead } });
       return response.data; // { success: true }
     } catch (err) {
       const message = err.response?.data?.message || "Failed to update notification";
@@ -284,12 +290,16 @@ batchVerifyUsers: async (userIds) => {
       if (response.data) {
         return response.data;
       } else {
-        console.error("Failed to fetch classes", response.data);
+         const message = response?.data?.message || "Failed to fetch classes";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
         return [];
       }
     } catch (err) {
       const message =
         err.response?.data?.message || "Failed to fetch classes";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
       return { error: message };
     }
   },
@@ -299,7 +309,9 @@ createClass: async (data) => {
       const response = await axios.post(`${API_BASE}/api/Classes/Create`, data);
       return response.data;
     } catch (err) {
-      console.error("Failed to create class:", err);
+        const message = err.response?.data?.message || "Failed to create class";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
       throw new Error(err.response?.data?.message || "Failed to create class");
     }
   },
@@ -314,47 +326,54 @@ createClass: async (data) => {
       const response = await axios.get(url);
       return response.data;
     } catch (err) {
-      console.error("Failed to fetch activities:", err);
+        const message = err.response?.data?.message || "Failed to fetch activities";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
       return [];
     }
   },
 
-  createActivity: async (data) => {
-    await delay();
-    const newActivity = { ...data, id: `a${activities.length + 1}` };
-    activities.push(newActivity);
-    saveData("mock_activities", activities);
-
-    // Notify students
-    const classStudents = enrollments.filter(
-      (e) => e.classId === newActivity.classId,
+ createActivity: async (data) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE}/api/Activities`, // adjust if your route is different
+      data
     );
-    classStudents.forEach((s) => {
-      notifications.push({
-        id: `n${notifications.length + 1}`,
-        userId: s.studentId,
-        title: "New Mission Deployed",
-        message: `New activity: ${newActivity.title} in your class!`,
-        type: "task",
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      });
-    });
-    saveData("mock_notifications", notifications);
 
-    return newActivity;
-  },
+    return response.data;
+  } catch (err) {
+      const message = err.response?.data?.message || "Failed to create activity";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
 
-  updateActivity: async (id, data) => {
-    await delay();
-    const index = activities.findIndex((a) => a.id === id);
-    if (index !== -1) {
-      activities[index] = { ...activities[index], ...data };
-      saveData("mock_activities", activities);
-      return activities[index];
+    throw (
+      err.response?.data ||
+      "Failed to create activity"
+    );
+  }
+},
+
+updateActivity: async (id, data) => {
+  try {
+    const response = await axios.put(
+      `${API_BASE}/api/Activities/${id}`,
+      data
+    );
+
+    return response.data;
+  } catch (err) {
+    const message = err.response?.data?.message || "Failed to update activity";
+    const { useUIStore } = await import("./store.js");
+    useUIStore.getState().showNotification(message, "error", 8000);
+
+
+    if (err.response?.status === 404) {
+      throw new Error("Activity not found");
     }
-    throw new Error("Activity not found");
-  },
+
+    throw err.response?.data || "Failed to update activity";
+  }
+},
 
   // Enrollments
   joinClass: async (studentId, inviteCode) => {
@@ -368,7 +387,9 @@ createClass: async (data) => {
     );
     return response.data;
   } catch (err) {
-    console.error("Failed to join class:", err);
+      const message = err.response?.data?.message || "Failed to join class";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
     throw new Error(
       err.response?.data?.message || "Failed to join class"
     );
@@ -377,47 +398,63 @@ createClass: async (data) => {
 
   // Analytics
   getAnalytics: async (teacherId) => {
+    // If a teacherId is provided call the backend route that expects it as a path segment.
+    // The controller exposes: GET /api/Classes/Analytics/{teacherId}
+    if (teacherId != null) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/Classes/Analytics/${teacherId}`);
+        if (response && response.data) return response.data;
+      } catch (err) {
+        const message = err.response?.data?.message || "Failed to fetch analytics"; 
+        const { useUIStore } = await import("./store.js");
+        useUIStore.getState().showNotification(message, "error", 8000);
+      }
+    }
+
+    // Mock fallback (keeps previous behavior)
     await delay();
     const teacherClasses = classes.filter((c) => c.teacherId === teacherId);
     const classIds = teacherClasses.map((c) => c.id);
-    const classActivities = activities.filter((a) =>
-      classIds.includes(a.classId),
-    );
+    const classActivities = activities.filter((a) => classIds.includes(a.classId));
     const activityIds = classActivities.map((a) => a.id);
-    const classSubmissions = submissions.filter((s) =>
-      activityIds.includes(s.activityId),
-    );
+    const classSubmissions = submissions.filter((s) => activityIds.includes(s.activityId));
 
     return {
       totalClasses: teacherClasses.length,
-      totalStudents: enrollments.filter((e) => classIds.includes(e.classId))
-        .length,
+      totalStudents: enrollments.filter((e) => classIds.includes(e.classId)).length,
       totalSubmissions: classSubmissions.length,
       completionRate:
         classActivities.length > 0
-          ? Math.round(
-              (classSubmissions.length / (classActivities.length * 10)) * 100,
-            )
+          ? Math.round((classSubmissions.length / (classActivities.length * 10)) * 100)
           : 0,
     };
   },
 
   // Tracking
   getClassTracking: async (classId) => {
+    // Prefer backend API endpoint: GET /api/Classes/tracking/{classId}
+    if (classId != null) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/Classes/tracking/${classId}`);
+        if (response && response.data) return response.data;
+      } catch (err) {
+          const message = err.response?.data?.message || "Failed to fetch class tracking data";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
+      }
+    }
+
+    // Mock fallback (existing behavior)
     await delay();
     const classEnrollments = enrollments.filter((e) => e.classId === classId);
     const classActivities = activities.filter((a) => a.classId === classId);
 
     return classEnrollments.map((e) => {
       const student = users.find((u) => u.id === e.studentId);
-      const studentSubmissions = submissions.filter(
-        (s) => s.studentId === e.studentId,
-      );
+      const studentSubmissions = submissions.filter((s) => s.studentId === e.studentId);
 
       const activityStatuses = classActivities.map((a) => {
-        const submission = studentSubmissions.find(
-          (s) => s.activityId === a.id,
-        );
+        const submission = studentSubmissions.find((s) => s.activityId === a.id);
         return {
           activityId: a.id,
           activityTitle: a.title,
@@ -437,21 +474,48 @@ createClass: async (data) => {
 
   // Submissions
   getSubmissions: async (studentId) => {
+    // Prefer backend API; fall back to mock data on error
+    try {
+      const response = await axios.get(`${API_BASE}/api/Submissions`, {
+        params: studentId ? { studentId } : {},
+      });
+      if (response && response.data) return response.data;
+    } catch (err) {    
+       const message = err.response?.data?.message || "Failed to fetch submissions";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
+    }
+
+    // Mock fallback
     await delay();
     if (studentId) return submissions.filter((s) => s.studentId === studentId);
     return submissions;
   },
+ createSubmission: async (data) => {
+  try {
+    const formData = new FormData();
 
-  createSubmission: async (data) => {
-    await delay();
-    const newSubmission = {
-      ...data,
-      id: `s${submissions.length + 1}`,
-      submittedAt: new Date().toISOString(),
-      status: "finished",
-    };
-    submissions.push(newSubmission);
-    saveData("mock_submissions", submissions);
-    return newSubmission;
-  },
+    // append metadata
+    formData.append("ActivityId", data.activityId);
+    formData.append("StudentId", data.studentId);
+
+    // append files (supports multiple files keyed by type)
+    if (data.files) {
+     Object.entries(data.files).forEach(([type, file]) => {
+  if (file) formData.append("Files", file);
+});
+    }
+
+    const response = await axios.post(`${API_BASE}/api/Submissions/Create`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    return response.data;
+  } catch (err) {
+      const message = err.response?.data?.message || "Failed to submit activity";
+      const { useUIStore } = await import("./store.js");
+      useUIStore.getState().showNotification(message, "error", 8000);
+    throw err; // rethrow so frontend can handle alert/error
+  }
+},
 };

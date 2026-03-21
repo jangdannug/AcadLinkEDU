@@ -27,7 +27,7 @@ export default function Tasks() {
       const [allActivities, allSubmissions, allClasses] = await Promise.all([
         api.getActivities(),
         api.getSubmissions(user.id),
-        api.getClasses()
+        api.getClasses(user.id),
       ]);
 
       let filteredActivities = [];
@@ -65,23 +65,42 @@ export default function Tasks() {
     return true;
   });
 
-  const handleFileUpload = async (activityId) => {
-    if (!user) return;
-    
-    await api.createSubmission({
-      activityId,
-      studentId: user.id,
-      fileUrl: '#',
-      fileName: Object.values(uploadFiles).map(f => f?.name).filter(Boolean).join(', ')
+ const handleFileUpload = async (activityId) => {
+  if (!user) return;
+
+  try {
+    const formData = new FormData();
+
+    // append files
+    Object.entries(uploadFiles).forEach(([type, file]) => {
+      if (file) formData.append(type, file);
     });
 
-    alert('Neural uplink successful. Data packets transmitted to academic sector.');
+    // append metadata
+    formData.append("activityId", activityId);
+    formData.append("studentId", user.id);
+
+    const response = await api.createSubmission({
+  activityId: selectedTask.id,
+  studentId: user.id,
+  files: uploadFiles, // the object from <input type="file">
+});
+
+if (!response) throw new Error("Upload failed");
+
+    alert("Neural uplink successful. Data packets transmitted to academic sector.");
     setSelectedTask(null);
     setUploadFiles({});
-    // Refresh submissions
+
+    // refresh submissions
     const allSubmissions = await api.getSubmissions(user.id);
     setSubmissions(allSubmissions);
-  };
+  } catch (err) {
+    const message = err.response?.data?.message || "Failed to upload submission";
+    const { useUIStore } = await import("../store.js");
+    useUIStore.getState().showNotification(message, "error", 8000);
+  }
+};
 
   return (
     <div className="space-y-8">
