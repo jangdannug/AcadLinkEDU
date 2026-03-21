@@ -559,6 +559,8 @@ export default function ClassDetail() {
                               Preview
                             </button>
                           )}
+
+                          
                           <span className="text-[10px] text-white/30">
                             {format(
                               parseISO(status.submittedAt),
